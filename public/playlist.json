@@ -1,0 +1,18 @@
+{
+  "playlist": [
+    {
+      "type": "image",
+      "url": "https://picsum.photos/1280/720?random=1",
+      "duration": 5
+    },
+    {
+      "type": "image",
+      "url": "https://picsum.photos/1280/720?random=2",
+      "duration": 3
+    },
+    {
+      "type": "video",
+      "url": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
+    }
+  ]
+}

@@ -1,24 +1,30 @@
-import './style.css'
-import typescriptLogo from './typescript.svg'
-import viteLogo from '/vite.svg'
-import { setupCounter } from './counter.ts'
+import { PlayerEngine } from "./engine/player-engine";
+import { HttpPlaylistRepository } from "./infrastructure/network/http-playlist-repository";
+import { ConsoleRenderer } from "./infrastructure/render/console-renderer";
+import { BrowserTimer } from "./infrastructure/time/browser-timer";
 
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-  <div>
-    <a href="https://vite.dev" target="_blank">
-      <img src="${viteLogo}" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://www.typescriptlang.org/" target="_blank">
-      <img src="${typescriptLogo}" class="logo vanilla" alt="TypeScript logo" />
-    </a>
-    <h1>Vite + TypeScript</h1>
-    <div class="card">
-      <button id="counter" type="button"></button>
-    </div>
-    <p class="read-the-docs">
-      Click on the Vite and TypeScript logos to learn more
-    </p>
-  </div>
-`
+const PLAYLIST_URL = "/playlist.json";
 
-setupCounter(document.querySelector<HTMLButtonElement>('#counter')!)
+const repo = new HttpPlaylistRepository(PLAYLIST_URL, 10_000);
+const renderer = new ConsoleRenderer();
+const timer = new BrowserTimer();
+
+const engine = new PlayerEngine(repo, renderer, timer, {
+  loop: true,
+  maxConsecutiveErrors: 5,
+});
+
+engine.onEvent((ev) => {
+  if (ev.type === "LOG") {
+    const prefix = `[${ev.level.toUpperCase()}]`;
+    console.log(prefix, ev.message);
+  }
+
+  if (ev.type === "STATE_CHANGED") {
+    console.log("[STATE]", ev.state);
+  }
+});
+
+void engine.start();
+
+(window as any).triggerVideoEnded = () => renderer.debugTriggerVideoEnded();
