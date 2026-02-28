@@ -37,7 +37,7 @@ export class PlayerEngine {
     repo: PlaylistRepository,
     renderer: Renderer,
     timer: Timer,
-    options: EngineOptions = { loop: true, maxConsecutiveErrors: 5 }
+    options: EngineOptions = { loop: true, maxConsecutiveErrors: 5 },
   ) {
     this.repo = repo;
     this.renderer = renderer;
@@ -147,14 +147,14 @@ export class PlayerEngine {
 
     if (this.consecutiveErrors >= this.options.maxConsecutiveErrors) {
       this.fail(
-        `Too many consecutive playback errors (${this.consecutiveErrors}). Last reason: ${reason}`
+        `Too many consecutive playback errors (${this.consecutiveErrors}). Last reason: ${reason}`,
       );
       return;
     }
 
     this.emitLog(
       "warn",
-      `Skipping item due to error. consecutiveErrors=${this.consecutiveErrors}`
+      `Skipping item due to error. consecutiveErrors=${this.consecutiveErrors}`,
     );
     this.next();
   }
@@ -184,5 +184,33 @@ export class PlayerEngine {
 
   private emit(ev: EngineEvent): void {
     for (const l of this.listeners) l(ev);
+  }
+
+  async reloadPlaylist(): Promise<void> {
+    this.emitLog("info", "Reloading playlist...");
+
+    try {
+      const playlist = await this.repo.getPlaylist();
+      if (!playlist.items.length) {
+        this.emitLog(
+          "warn",
+          "Reloaded playlist is empty. Keeping current playlist.",
+        );
+        return;
+      }
+
+      this.playlist = playlist;
+      this.currentIndex = 0;
+      this.consecutiveErrors = 0;
+
+      this.clearImageTimer();
+      this.renderer.clear();
+
+      this.emitLog("info", `Playlist reloaded. items=${playlist.items.length}`);
+      await this.playCurrent();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      this.emitLog("warn", `Playlist reload failed: ${msg}`);
+    }
   }
 }
