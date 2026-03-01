@@ -11,8 +11,9 @@
       "duration": 5
     },
     {
-      "type": "video",
-      "url": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
+      "type": "image",
+      "url": "https://fastly.picsum.photos/id/615/1280/720.jpg?hmac=7HTHiDxDVvoEPWLZG_OTs4t1vGergUqNMbDOEod-6n8",
+      "duration": 5
     },
     {
       "type": "image",

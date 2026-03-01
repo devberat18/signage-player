@@ -1,6 +1,6 @@
-import type { PlaylistRepository } from "../application/ports/playlist-repository";
-import type { Renderer } from "../application/ports/renderer";
-import type { Timer, TimerHandle } from "../application/ports/timer";
+import type { PlaylistRepository } from "../core/ports/playlist-repository.port";
+import type { Renderer } from "../core/ports/renderer.port";
+import type { Timer, TimerHandle } from "../core/ports/timer.port";
 import type { Playlist, PlaylistItem } from "../core/domain/playlist";
 
 type EngineState =

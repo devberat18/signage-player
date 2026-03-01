@@ -1,4 +1,4 @@
-import type { PlaylistItem } from "../../core/domain/playlist";
+import type { PlaylistItem } from "../domain/playlist";
 
 export type RenderResult =
   | { ok: true }

@@ -15,7 +15,7 @@ client.on("connect", () => {
 
   const command = {
     command: "reload_playlist",
-    correlationId: `c-${Date.now()}`,
+    correlationId: `c-fixed-001`,
     timestamp: Date.now(),
   };
 

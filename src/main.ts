@@ -1,4 +1,3 @@
-// src/main.ts
 import "./style.css";
 
 import { MqttJsClientAdapter } from "./infrastructure/mqtt/mqttjs-client";
@@ -16,7 +15,6 @@ import { DomRenderer } from "./infrastructure/render/dom-renderer";
 
 const PLAYLIST_URL = "/playlist.json";
 
-// DEVICE_ID nereden geliyor? şimdilik env
 const deviceId =
   (import.meta.env.VITE_DEVICE_ID as string | undefined) ?? "tizen-001";
 
@@ -31,16 +29,33 @@ async function bootstrap() {
   const renderer = new DomRenderer("app");
   const timer = new BrowserTimer();
 
-  // PlayerEngine instance (Faz 1)
   const engine = new PlayerEngine(repo, renderer, timer, {
     loop: true,
     maxConsecutiveErrors: 5,
   });
+
+  engine.onEvent((ev) => {
+    if (ev.type === "LOG") {
+      const prefix = `[ENGINE ${ev.level.toUpperCase()}]`;
+      console.log(prefix, ev.message);
+    }
+    if (ev.type === "STATE_CHANGED") {
+      console.log("[ENGINE STATE]", ev.state);
+    }
+  });
+
+  void engine.start();
+
+  (window as any).reloadPlaylist = () => engine.reloadPlaylist();
+
+  setInterval(() => {
+    void engine.reloadPlaylist();
+  }, 60_000);
+
   const playerPort = new PlayerEngineAdapter(engine);
 
   const dispatcher = new CommandDispatcher([
     new ReloadPlaylistHandler(playerPort),
-    // diğer handler’ları sonra ekleriz
   ]);
 
   const store = new LocalStorageIdempotencyStore<any>({
@@ -76,7 +91,6 @@ async function bootstrap() {
   await mqtt.subscribe(commandsTopic, { qos: 1 });
   gateway.start();
 
-  // Online heartbeat (ilk adım)
   await mqtt.publish(
     eventsTopic,
     JSON.stringify({

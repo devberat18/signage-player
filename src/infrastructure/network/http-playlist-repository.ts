@@ -1,4 +1,4 @@
-import type { PlaylistRepository } from "../../application/ports/playlist-repository";
+import type { PlaylistRepository } from "../../core/ports/playlist-repository.port";
 import {
   validatePlaylistResponseDto,
   mapPlaylistDtoToDomain,

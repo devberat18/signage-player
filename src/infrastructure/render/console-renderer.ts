@@ -1,4 +1,4 @@
-import type { Renderer, RenderResult } from "../../application/ports/renderer";
+import type { Renderer, RenderResult } from "../../core/ports/renderer.port";
 import type { PlaylistItem } from "../../core/domain/playlist";
 
 export class ConsoleRenderer implements Renderer {

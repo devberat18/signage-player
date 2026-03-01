@@ -1,4 +1,4 @@
-import type { Renderer, RenderResult } from "../../application/ports/renderer";
+import type { Renderer, RenderResult } from "../../core/ports/renderer.port";
 import type { PlaylistItem } from "../../core/domain/playlist";
 
 type Slot = {
@@ -44,7 +44,12 @@ export class DomRenderer implements Renderer {
   }
 
   clear(): void {
-    
+    this.disposeSlot(this.a);
+    this.disposeSlot(this.b);
+    this.a.root.style.opacity = "1";
+    this.b.root.style.opacity = "0";
+    this.active = this.a;
+    this.inactive = this.b;
   }
 
   async render(item: PlaylistItem): Promise<RenderResult> {
@@ -135,43 +140,43 @@ export class DomRenderer implements Renderer {
   }
 
   private waitVideoReady(video: HTMLVideoElement): Promise<void> {
-  return new Promise((resolve, reject) => {
-    // readyState:
-    // 0 = HAVE_NOTHING
-    // 1 = HAVE_METADATA
-    // 2 = HAVE_CURRENT_DATA (first frame data)
-    // 3 = HAVE_FUTURE_DATA
-    // 4 = HAVE_ENOUGH_DATA
+    return new Promise((resolve, reject) => {
+      // readyState:
+      // 0 = HAVE_NOTHING
+      // 1 = HAVE_METADATA
+      // 2 = HAVE_CURRENT_DATA (first frame data)
+      // 3 = HAVE_FUTURE_DATA
+      // 4 = HAVE_ENOUGH_DATA
 
-    if (video.readyState >= 2) return resolve();
+      if (video.readyState >= 2) return resolve();
 
-    const onReady = () => {
-      cleanup();
-      resolve();
-    };
+      const onReady = () => {
+        cleanup();
+        resolve();
+      };
 
-    const onError = () => {
-      cleanup();
-      reject(new Error("Video failed to load"));
-    };
+      const onError = () => {
+        cleanup();
+        reject(new Error("Video failed to load"));
+      };
 
-    const timeout = window.setTimeout(() => {
-      cleanup();
-      reject(new Error("Video load timeout"));
-    }, 8000);
+      const timeout = window.setTimeout(() => {
+        cleanup();
+        reject(new Error("Video load timeout"));
+      }, 8000);
 
-    const cleanup = () => {
-      window.clearTimeout(timeout);
-      video.removeEventListener("loadeddata", onReady);
-      video.removeEventListener("canplay", onReady);
-      video.removeEventListener("error", onError);
-    };
+      const cleanup = () => {
+        window.clearTimeout(timeout);
+        video.removeEventListener("loadeddata", onReady);
+        video.removeEventListener("canplay", onReady);
+        video.removeEventListener("error", onError);
+      };
 
-    video.addEventListener("loadeddata", onReady);
+      video.addEventListener("loadeddata", onReady);
 
-    video.addEventListener("canplay", onReady);
+      video.addEventListener("canplay", onReady);
 
-    video.addEventListener("error", onError);
-  });
-}
+      video.addEventListener("error", onError);
+    });
+  }
 }

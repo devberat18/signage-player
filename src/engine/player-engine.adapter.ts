@@ -5,7 +5,7 @@ export class PlayerEngineAdapter implements PlayerEnginePort {
   constructor(private readonly engine: PlayerEngine) {}
 
   async reloadPlaylist(): Promise<void> {
-    await (this.engine as any).reloadPlaylist?.();
+    await this.engine.reloadPlaylist();
   }
 
   async play(): Promise<void> {

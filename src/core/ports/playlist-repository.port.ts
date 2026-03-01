@@ -1,4 +1,4 @@
-import type { Playlist } from "../../core/domain/playlist";
+import type { Playlist } from "../domain/playlist";
 
 export interface PlaylistRepository {
   getPlaylist(): Promise<Playlist>;

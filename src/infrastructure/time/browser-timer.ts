@@ -1,4 +1,4 @@
-import type { Timer, TimerHandle } from "../../application/ports/timer";
+import type { Timer, TimerHandle } from "../../core/ports/timer.port";
 
 export class BrowserTimer implements Timer {
   setTimeout(handler: () => void, delayMs: number): TimerHandle {
