@@ -3,7 +3,7 @@ import "./style.css";
 
 import { MqttJsClientAdapter } from "./infrastructure/mqtt/mqttjs-client";
 import { ConsoleLogger } from "./infrastructure/logging/console-logger";
-import { MemoryIdempotencyStore } from "./infrastructure/storage/idempotency-memory.store";
+import { LocalStorageIdempotencyStore } from "./infrastructure/storage/idempotency-localstorage.store";
 import { CommandDispatcher } from "./core/application/command-dispatcher";
 import { MqttCommandGateway } from "./core/application/mqtt-command-gateway";
 import { ReloadPlaylistHandler } from "./core/application/handlers/reload-playlist.handler";
@@ -43,8 +43,10 @@ async function bootstrap() {
     // diğer handler’ları sonra ekleriz
   ]);
 
-  const store = new MemoryIdempotencyStore<any>();
-
+  const store = new LocalStorageIdempotencyStore<any>({
+    namespace: `signage:idempo:${deviceId}`,
+    maxKeys: 500,
+  });
   const gateway = new MqttCommandGateway({
     mqtt,
     logger,
