@@ -1,0 +1,54 @@
+export type CorrelationId = string;
+
+export type CommandType =
+  | "reload_playlist"
+  | "restart_player"
+  | "play"
+  | "pause"
+  | "set_volume"
+  | "screenshot";
+
+export interface BaseCommand<TPayload = unknown> {
+  type: CommandType;
+  correlationId: CorrelationId;
+  timestamp: number;
+  payload?: TPayload;
+}
+
+export interface SetVolumePayload {
+  volume: number;
+}
+
+export interface ScreenshotPayload {
+  format?: "png" | "jpg";
+}
+
+export type ReloadPlaylistCommand = BaseCommand<undefined> & { type: "reload_playlist" };
+export type RestartPlayerCommand = BaseCommand<undefined> & { type: "restart_player" };
+export type PlayCommand = BaseCommand<undefined> & { type: "play" };
+export type PauseCommand = BaseCommand<undefined> & { type: "pause" };
+export type SetVolumeCommand = BaseCommand<SetVolumePayload> & { type: "set_volume" };
+export type ScreenshotCommand = BaseCommand<ScreenshotPayload> & { type: "screenshot" };
+
+export type Command =
+  | ReloadPlaylistCommand
+  | RestartPlayerCommand
+  | PlayCommand
+  | PauseCommand
+  | SetVolumeCommand
+  | ScreenshotCommand;
+
+/**
+ * Domain-level “shape” check only.
+ * Deep validation (e.g. volume range) belongs to Application layer.
+ */
+export function isCommandType(value: unknown): value is CommandType {
+  return (
+    value === "reload_playlist" ||
+    value === "restart_player" ||
+    value === "play" ||
+    value === "pause" ||
+    value === "set_volume" ||
+    value === "screenshot"
+  );
+}
