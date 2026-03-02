@@ -9,6 +9,7 @@ type Slot = {
 export class DomRenderer implements Renderer {
   private container: HTMLElement;
   private videoEndedHandler: (() => void) | null = null;
+  private volume01: number = 0;
 
   private a: Slot;
   private b: Slot;
@@ -52,6 +53,26 @@ export class DomRenderer implements Renderer {
     this.inactive = this.b;
   }
 
+  pause(): void {
+    const el = this.active.element;
+    if (el instanceof HTMLVideoElement) el.pause();
+  }
+
+  resume(): void {
+    const el = this.active.element;
+    if (el instanceof HTMLVideoElement) void el.play();
+  }
+
+  setVolume(volume01: number): void {
+    this.volume01 = Math.min(1, Math.max(0, volume01));
+
+    const el = this.active.element;
+    if (el instanceof HTMLVideoElement) {
+      el.volume = this.volume01;
+      el.muted = this.volume01 === 0;
+    }
+  }
+
   async render(item: PlaylistItem): Promise<RenderResult> {
     try {
       this.disposeSlot(this.inactive);
@@ -66,6 +87,8 @@ export class DomRenderer implements Renderer {
         await this.waitImageReady(img);
       } else {
         const video = document.createElement("video");
+        video.volume = this.volume01;
+        video.muted = this.volume01 === 0;
         video.src = item.url;
         video.autoplay = true;
         video.muted = true;
@@ -141,13 +164,6 @@ export class DomRenderer implements Renderer {
 
   private waitVideoReady(video: HTMLVideoElement): Promise<void> {
     return new Promise((resolve, reject) => {
-      // readyState:
-      // 0 = HAVE_NOTHING
-      // 1 = HAVE_METADATA
-      // 2 = HAVE_CURRENT_DATA (first frame data)
-      // 3 = HAVE_FUTURE_DATA
-      // 4 = HAVE_ENOUGH_DATA
-
       if (video.readyState >= 2) return resolve();
 
       const onReady = () => {

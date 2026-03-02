@@ -22,7 +22,7 @@ export class PlayerEngine {
   private state: EngineState = { status: "IDLE" };
   private playlist: Playlist | null = null;
   private currentIndex = 0;
-
+  private paused = false;
   private imageTimer: TimerHandle | null = null;
   private consecutiveErrors = 0;
 
@@ -32,6 +32,11 @@ export class PlayerEngine {
   private readonly renderer: Renderer;
   private readonly timer: Timer;
   private readonly options: EngineOptions;
+
+  private currentImageDurationMs: number | null = null;
+  private currentImageStartedAt: number | null = null;
+  private remainingImageMs: number | null = null;
+  private volume01: number = 0;
 
   constructor(
     repo: PlaylistRepository,
@@ -91,6 +96,10 @@ export class PlayerEngine {
   }
 
   next(): void {
+    if (this.paused) {
+      this.emitLog("info", "next() ignored because paused=true");
+      return;
+    }
     if (!this.playlist) return;
 
     this.clearImageTimer();
@@ -113,6 +122,12 @@ export class PlayerEngine {
     void this.playCurrent();
   }
 
+  async setVolume(volume: number): Promise<void> {
+    this.volume01 = Math.min(1, Math.max(0, volume / 100));
+    await this.renderer.setVolume?.(this.volume01);
+    this.emitLog("info", `Volume set: ${volume} (${this.volume01})`);
+  }
+
   private async playCurrent(): Promise<void> {
     if (!this.playlist) return;
 
@@ -129,16 +144,32 @@ export class PlayerEngine {
 
     this.consecutiveErrors = 0;
 
+    // if (item.kind === "image") {
+    //   this.emitLog("info", `Image timer set: ${item.durationMs}ms`);
+    //   this.imageTimer = this.timer.setTimeout(() => {
+    //     this.emitLog("info", "Image duration elapsed -> next()");
+    //     this.next();
+    //   }, item.durationMs);
+    // }
+
+    // if (item.kind === "video") {
+    //   this.emitLog("info", "Video playing... waiting for renderer ended event");
+    // }
+
     if (item.kind === "image") {
+      this.currentImageDurationMs = item.durationMs;
+      this.currentImageStartedAt = Date.now();
+      this.remainingImageMs = item.durationMs;
+
       this.emitLog("info", `Image timer set: ${item.durationMs}ms`);
       this.imageTimer = this.timer.setTimeout(() => {
         this.emitLog("info", "Image duration elapsed -> next()");
         this.next();
       }, item.durationMs);
-    }
-
-    if (item.kind === "video") {
-      this.emitLog("info", "Video playing... waiting for renderer ended event");
+    } else {
+      this.currentImageDurationMs = null;
+      this.currentImageStartedAt = null;
+      this.remainingImageMs = null;
     }
   }
 
@@ -164,6 +195,57 @@ export class PlayerEngine {
     this.renderer.clear();
     this.setState({ status: "ERROR", message });
     this.emitLog("error", message);
+  }
+
+  async pause(): Promise<void> {
+    if (this.paused) return;
+
+    this.paused = true;
+
+    if (
+      this.currentImageDurationMs !== null &&
+      this.currentImageStartedAt !== null
+    ) {
+      const elapsed = Date.now() - this.currentImageStartedAt;
+      const remaining = Math.max(0, this.currentImageDurationMs - elapsed);
+
+      this.remainingImageMs = remaining;
+      this.clearImageTimer();
+      this.emitLog("info", `Paused image. remainingMs=${remaining}`);
+      return;
+    }
+
+    await this.renderer.pause?.();
+    this.emitLog("info", "Paused video (if supported).");
+  }
+
+  async play(): Promise<void> {
+    if (!this.paused) return;
+
+    this.paused = false;
+
+    if (this.remainingImageMs !== null) {
+      const remaining = this.remainingImageMs;
+      this.remainingImageMs = null;
+      this.currentImageStartedAt = Date.now();
+
+      this.emitLog("info", `Resuming image. remainingMs=${remaining}`);
+      this.imageTimer = this.timer.setTimeout(() => {
+        this.emitLog("info", "Image remaining elapsed -> next()");
+        this.next();
+      }, remaining);
+      return;
+    }
+
+    await this.renderer.resume?.();
+    this.emitLog("info", "Resumed video (if supported).");
+  }
+
+  async restartPlayer(): Promise<void> {
+    this.emitLog("info", "Soft restart requested.");
+    this.paused = false;
+    this.stop();
+    await this.start();
   }
 
   private clearImageTimer(): void {

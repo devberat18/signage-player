@@ -12,6 +12,10 @@ import { PlayerEngineAdapter } from "./engine/player-engine.adapter";
 import { HttpPlaylistRepository } from "./infrastructure/network/http-playlist-repository";
 import { BrowserTimer } from "./infrastructure/time/browser-timer";
 import { DomRenderer } from "./infrastructure/render/dom-renderer";
+import { RestartPlayerHandler } from "./core/application/handlers/restart-player.handler";
+import { PlayHandler } from "./core/application/handlers/play.handler";
+import { PauseHandler } from "./core/application/handlers/pause.handler";
+import { SetVolumeHandler } from "./core/application/handlers/set-volume.handler";
 
 const PLAYLIST_URL = "/playlist.json";
 
@@ -56,6 +60,10 @@ async function bootstrap() {
 
   const dispatcher = new CommandDispatcher([
     new ReloadPlaylistHandler(playerPort),
+    new RestartPlayerHandler(playerPort),
+    new PlayHandler(playerPort),
+    new PauseHandler(playerPort),
+    new SetVolumeHandler(playerPort),
   ]);
 
   const store = new LocalStorageIdempotencyStore<any>({
