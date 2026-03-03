@@ -6,7 +6,8 @@ export type CommandType =
   | "play"
   | "pause"
   | "set_volume"
-  | "screenshot";
+  | "screenshot"
+  | "ota_update";
 
 export interface BaseCommand<TPayload = unknown> {
   type: CommandType;
@@ -23,12 +24,18 @@ export interface ScreenshotPayload {
   format?: "png" | "jpg";
 }
 
+export interface OtaUpdatePayload {
+  url: string;
+  version: string;
+}
+
 export type ReloadPlaylistCommand = BaseCommand<undefined> & { type: "reload_playlist" };
 export type RestartPlayerCommand = BaseCommand<undefined> & { type: "restart_player" };
 export type PlayCommand = BaseCommand<undefined> & { type: "play" };
 export type PauseCommand = BaseCommand<undefined> & { type: "pause" };
 export type SetVolumeCommand = BaseCommand<SetVolumePayload> & { type: "set_volume" };
 export type ScreenshotCommand = BaseCommand<ScreenshotPayload> & { type: "screenshot" };
+export type OtaUpdateCommand = BaseCommand<OtaUpdatePayload> & { type: "ota_update" };
 
 export type Command =
   | ReloadPlaylistCommand
@@ -36,7 +43,8 @@ export type Command =
   | PlayCommand
   | PauseCommand
   | SetVolumeCommand
-  | ScreenshotCommand;
+  | ScreenshotCommand
+  | OtaUpdateCommand;
 
 
 export function isCommandType(value: unknown): value is CommandType {
@@ -46,6 +54,7 @@ export function isCommandType(value: unknown): value is CommandType {
     value === "play" ||
     value === "pause" ||
     value === "set_volume" ||
-    value === "screenshot"
+    value === "screenshot" ||
+    value === "ota_update"
   );
 }

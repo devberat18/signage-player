@@ -40,6 +40,31 @@ export function validateCommand(command: Command): Command | DomainError {
       return { ...command, payload: { format: fmt } };
     }
 
+    case "ota_update": {
+      const p = command.payload as unknown;
+      if (typeof p !== "object" || p === null) {
+        return domainError("VALIDATION_ERROR", "ota_update.payload must be an object");
+      }
+
+      const { url, version } = p as Record<string, unknown>;
+
+      if (typeof url !== "string" || url.trim().length === 0) {
+        return domainError(
+          "VALIDATION_ERROR",
+          "ota_update.payload.url must be a non-empty string",
+        );
+      }
+
+      if (typeof version !== "string" || version.trim().length === 0) {
+        return domainError(
+          "VALIDATION_ERROR",
+          "ota_update.payload.version must be a non-empty string",
+        );
+      }
+
+      return { ...command, payload: { url: url.trim(), version: version.trim() } };
+    }
+
     default:
       return command;
   }
