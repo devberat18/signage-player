@@ -30,7 +30,14 @@ async function bootstrap() {
   const eventsTopic = `players/${deviceId}/events`;
   const commandsTopic = `players/${deviceId}/commands`;
 
-  const repo = new HttpPlaylistRepository(PLAYLIST_URL, 10_000);
+  const repo = new HttpPlaylistRepository(PLAYLIST_URL, 10_000, {
+    cacheNamespace: `signage:${deviceId}`,
+    playlistCacheTtlMs: 24 * 60 * 60 * 1000,
+    playlistCacheMaxBytes: 512 * 1024,
+    mediaCacheTtlMs: 24 * 60 * 60 * 1000,
+    mediaCacheMaxBytes: 80 * 1024 * 1024,
+    logger,
+  });
   const renderer = new DomRenderer("app");
   const timer = new BrowserTimer();
 

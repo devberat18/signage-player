@@ -160,6 +160,15 @@ export class DomRenderer implements Renderer {
   }
 
   private disposeSlot(slot: Slot): void {
+    if (slot.element instanceof HTMLImageElement) {
+      const src = slot.element.src;
+      if (src.startsWith("blob:")) {
+        try {
+          URL.revokeObjectURL(src);
+        } catch {}
+      }
+    }
+
     if (slot.element instanceof HTMLVideoElement) {
       slot.element.pause();
       slot.element.removeAttribute("src");
