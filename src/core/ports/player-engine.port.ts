@@ -4,5 +4,7 @@ export interface PlayerEnginePort {
   pause(): Promise<void>;
   restartPlayer(): Promise<void>;
   setVolume(volume: number): Promise<void>;
-  screenshot(format?: "png" | "jpg"): Promise<{ imageUrl?: string }>;
+  screenshot(
+    format?: "png" | "jpg",
+  ): Promise<{ format: "image/png" | "image/jpeg"; base64: string }>;
 }

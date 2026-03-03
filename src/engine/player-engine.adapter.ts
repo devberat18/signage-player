@@ -1,21 +1,6 @@
 import type { PlayerEnginePort } from "../core/ports/player-engine.port";
 import type { PlayerEngine } from "./player-engine";
 
-type VolumeCapable = { setVolume(volume: number): Promise<void> };
-type ScreenshotCapable = {
-  screenshot(format?: "png" | "jpg"): Promise<{ imageUrl?: string }>;
-};
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null;
-}
-function hasSetVolume(engine: unknown): engine is VolumeCapable {
-  return isRecord(engine) && typeof engine["setVolume"] === "function";
-}
-function hasScreenshot(engine: unknown): engine is ScreenshotCapable {
-  return isRecord(engine) && typeof engine["screenshot"] === "function";
-}
-
 export class PlayerEngineAdapter implements PlayerEnginePort {
   constructor(private readonly engine: PlayerEngine) {}
 
@@ -39,10 +24,9 @@ export class PlayerEngineAdapter implements PlayerEnginePort {
     await this.engine.setVolume(volume);
   }
 
-  async screenshot(format?: "png" | "jpg"): Promise<{ imageUrl?: string }> {
-    if (!hasScreenshot(this.engine)) {
-      return {};
-    }
+  async screenshot(
+    format?: "png" | "jpg",
+  ): Promise<{ format: "image/png" | "image/jpeg"; base64: string }> {
     return await this.engine.screenshot(format);
   }
 }

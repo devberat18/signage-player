@@ -16,6 +16,7 @@ import { RestartPlayerHandler } from "./core/application/handlers/restart-player
 import { PlayHandler } from "./core/application/handlers/play.handler";
 import { PauseHandler } from "./core/application/handlers/pause.handler";
 import { SetVolumeHandler } from "./core/application/handlers/set-volume.handler";
+import { ScreenshotHandler } from "./core/application/handlers/screenshot.handler";
 
 const PLAYLIST_URL = "/playlist.json";
 
@@ -37,6 +38,8 @@ async function bootstrap() {
     loop: true,
     maxConsecutiveErrors: 5,
   });
+
+  const startedAt = Date.now();
 
   engine.onEvent((ev) => {
     if (ev.type === "LOG") {
@@ -64,12 +67,14 @@ async function bootstrap() {
     new PlayHandler(playerPort),
     new PauseHandler(playerPort),
     new SetVolumeHandler(playerPort),
+    new ScreenshotHandler(playerPort),
   ]);
 
   const store = new LocalStorageIdempotencyStore<any>({
     namespace: `signage:idempo:${deviceId}`,
     maxKeys: 500,
   });
+
   const gateway = new MqttCommandGateway({
     mqtt,
     logger,
@@ -79,7 +84,33 @@ async function bootstrap() {
     topics: { commands: commandsTopic, events: eventsTopic },
   });
 
-  mqtt.onStatusChange((s) => logger.info("MQTT status", { status: s }));
+  const publishHeartbeat = async (status: "online" | "offline") => {
+    const uptimeSec = Math.floor((Date.now() - startedAt) / 1000);
+
+    await mqtt.publish(
+      eventsTopic,
+      JSON.stringify({
+        type: "heartbeat",
+        timestamp: Date.now(),
+        payload: {
+          status,
+          deviceId,
+          uptimeSec,
+          version:
+            (import.meta.env.VITE_APP_VERSION as string | undefined) ?? "dev",
+        },
+      }),
+      { qos: 1, retain: false },
+    );
+  };
+
+  mqtt.onStatusChange((s) => {
+    logger.info("MQTT status", { status: s });
+
+    if (s === "connected") {
+      void publishHeartbeat("online");
+    }
+  });
 
   await mqtt.connect({
     clientId: `player-${deviceId}`,
@@ -99,15 +130,12 @@ async function bootstrap() {
   await mqtt.subscribe(commandsTopic, { qos: 1 });
   gateway.start();
 
-  await mqtt.publish(
-    eventsTopic,
-    JSON.stringify({
-      type: "heartbeat",
-      timestamp: Date.now(),
-      payload: { status: "online", deviceId },
-    }),
-    { qos: 1 },
-  );
+  await publishHeartbeat("online");
+
+  const HEARTBEAT_MS = 15_000;
+  setInterval(() => {
+    void publishHeartbeat("online");
+  }, HEARTBEAT_MS);
 
   logger.info("Bootstrap complete", { deviceId, commandsTopic, eventsTopic });
 }

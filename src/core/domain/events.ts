@@ -26,7 +26,10 @@ export interface CommandResultPayload<TResult = unknown> {
   command: CommandType;
   status: CommandResultStatus;
   result?: TResult;
+  error?: { code: string; message: string };
   errorMessage?: string;
+  format?: "image/png" | "image/jpeg";
+  base64?: string;
 }
 
 export type CommandResultEvent<TResult = unknown> = BaseEvent<

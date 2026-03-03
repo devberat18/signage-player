@@ -103,26 +103,8 @@ export class MqttCommandGateway {
     const exec = await this.deps.dispatcher.dispatch(safeCommand);
 
     const result: CommandResultEvent = exec.ok
-      ? {
-          type: "command_result",
-          timestamp: Date.now(),
-          payload: {
-            correlationId: safeCommand.correlationId,
-            command: safeCommand.type,
-            status: "success",
-            result: exec.result,
-          },
-        }
-      : {
-          type: "command_result",
-          timestamp: Date.now(),
-          payload: {
-            correlationId: safeCommand.correlationId,
-            command: safeCommand.type,
-            status: "error",
-            errorMessage: exec.error.message,
-          },
-        };
+      ? this.buildSuccessResult(safeCommand, exec.result)
+      : this.buildErrorResult(safeCommand, exec.error);
 
     await this.publishWithRetry(
       this.deps.topics.events,
@@ -164,6 +146,79 @@ export class MqttCommandGateway {
     await this.publishWithRetry(this.deps.topics.events, JSON.stringify(ack), {
       qos: 1,
     });
+  }
+
+  private buildSuccessResult(
+    command: Command,
+    execResult: unknown,
+  ): CommandResultEvent {
+    if (command.type === "screenshot") {
+      const shot = execResult as
+        | { format?: "image/png" | "image/jpeg"; base64?: string }
+        | undefined;
+
+      if (
+        !shot ||
+        (shot.format !== "image/png" && shot.format !== "image/jpeg") ||
+        typeof shot.base64 !== "string" ||
+        shot.base64.length === 0
+      ) {
+        return this.buildErrorResult(command, {
+          code: "INTERNAL_ERROR",
+          message: "Screenshot output is invalid",
+          details: { code: "SCREENSHOT_INVALID_OUTPUT" },
+        });
+      }
+
+      return {
+        type: "command_result",
+        timestamp: Date.now(),
+        payload: {
+          correlationId: command.correlationId,
+          command: command.type,
+          status: "success",
+          format: shot.format,
+          base64: shot.base64,
+        },
+      };
+    }
+
+    return {
+      type: "command_result",
+      timestamp: Date.now(),
+      payload: {
+        correlationId: command.correlationId,
+        command: command.type,
+        status: "success",
+        result: execResult,
+      },
+    };
+  }
+
+  private buildErrorResult(
+    command: Command,
+    error: {
+      code: string;
+      message: string;
+      details?: Record<string, unknown>;
+    },
+  ): CommandResultEvent {
+    const code =
+      (error.details?.code as string | undefined) ??
+      error.code ??
+      "INTERNAL_ERROR";
+
+    return {
+      type: "command_result",
+      timestamp: Date.now(),
+      payload: {
+        correlationId: command.correlationId,
+        command: command.type,
+        status: "error",
+        error: { code, message: error.message },
+        errorMessage: error.message,
+      },
+    };
   }
 
   private async publishWithRetry(

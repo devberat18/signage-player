@@ -144,18 +144,6 @@ export class PlayerEngine {
 
     this.consecutiveErrors = 0;
 
-    // if (item.kind === "image") {
-    //   this.emitLog("info", `Image timer set: ${item.durationMs}ms`);
-    //   this.imageTimer = this.timer.setTimeout(() => {
-    //     this.emitLog("info", "Image duration elapsed -> next()");
-    //     this.next();
-    //   }, item.durationMs);
-    // }
-
-    // if (item.kind === "video") {
-    //   this.emitLog("info", "Video playing... waiting for renderer ended event");
-    // }
-
     if (item.kind === "image") {
       this.currentImageDurationMs = item.durationMs;
       this.currentImageStartedAt = Date.now();
@@ -294,5 +282,16 @@ export class PlayerEngine {
       const msg = e instanceof Error ? e.message : String(e);
       this.emitLog("warn", `Playlist reload failed: ${msg}`);
     }
+  }
+
+  async screenshot(
+    format: "png" | "jpg" = "png",
+  ): Promise<{ format: "image/png" | "image/jpeg"; base64: string }> {
+    const r = this.renderer as any;
+    if (typeof r.screenshot === "function") {
+      return await r.screenshot(format);
+    }
+
+    throw new Error("Renderer does not support screenshot");
   }
 }

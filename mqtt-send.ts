@@ -14,10 +14,10 @@ client.on("connect", () => {
   client.subscribe(`players/${DEVICE_ID}/events`, { qos: 1 });
 
   const command = {
-    command: "set_volume",
-    correlationId: `vol-002`,
-    timestamp: Date.now(),
-    payload: { volume: 99 },
+    command: "screenshot",
+    correlationId: "shot-000001",
+    timestamp: 1710000000000,
+    payload: { format: "png" },
   };
 
   client.publish(

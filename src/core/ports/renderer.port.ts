@@ -12,4 +12,8 @@ export interface Renderer {
   pause?(): void | Promise<void>;
   resume?(): void | Promise<void>;
   setVolume?(volume01: number): void | Promise<void>;
+
+  screenshot?(
+    format?: "png" | "jpg",
+  ): Promise<{ base64: string; format: "image/png" | "image/jpeg" }>;
 }

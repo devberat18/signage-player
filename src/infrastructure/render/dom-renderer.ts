@@ -6,6 +6,9 @@ type Slot = {
   element: HTMLElement | null;
 };
 
+type ScreenshotExt = "png" | "jpg";
+type ScreenshotMime = "image/png" | "image/jpeg";
+
 export class DomRenderer implements Renderer {
   private container: HTMLElement;
   private videoEndedHandler: (() => void) | null = null;
@@ -79,20 +82,26 @@ export class DomRenderer implements Renderer {
 
       if (item.kind === "image") {
         const img = document.createElement("img");
+        img.crossOrigin = "anonymous";
+
         img.src = item.url;
         this.applyMediaStyles(img);
+
         this.inactive.root.appendChild(img);
         this.inactive.element = img;
 
         await this.waitImageReady(img);
       } else {
         const video = document.createElement("video");
-        video.volume = this.volume01;
-        video.muted = this.volume01 === 0;
+        (video as any).crossOrigin = "anonymous";
+
         video.src = item.url;
         video.autoplay = true;
-        video.muted = true;
         video.playsInline = true;
+
+        video.volume = this.volume01;
+        video.muted = this.volume01 === 0;
+
         this.applyMediaStyles(video);
 
         video.onended = () => this.videoEndedHandler?.();
@@ -105,13 +114,20 @@ export class DomRenderer implements Renderer {
       }
 
       this.swapLayers();
-
       this.disposeSlot(this.inactive);
 
       return { ok: true };
     } catch (e) {
       return { ok: false, reason: e instanceof Error ? e.message : String(e) };
     }
+  }
+
+  async screenshot(
+    format: ScreenshotExt = "png",
+  ): Promise<{ base64: string; format: ScreenshotMime }> {
+    const el = this.active.element;
+    if (!el) throw new Error("No active media element to screenshot");
+    return this.toBase64FromElement(el, format);
   }
 
   private createLayer(): HTMLDivElement {
@@ -131,7 +147,6 @@ export class DomRenderer implements Renderer {
     el.style.left = "0";
     el.style.width = "100%";
     el.style.height = "100%";
-
     (el as any).style.objectFit = "cover";
   }
 
@@ -189,10 +204,50 @@ export class DomRenderer implements Renderer {
       };
 
       video.addEventListener("loadeddata", onReady);
-
       video.addEventListener("canplay", onReady);
-
       video.addEventListener("error", onError);
     });
+  }
+
+  private toBase64FromElement(
+    el: HTMLElement,
+    format: ScreenshotExt,
+  ): { base64: string; format: ScreenshotMime } {
+    const w = this.container.clientWidth || 1280;
+    const h = this.container.clientHeight || 720;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas 2D context not available");
+
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, w, h);
+
+    if (el instanceof HTMLVideoElement) {
+      ctx.drawImage(el, 0, 0, w, h);
+    } else if (el instanceof HTMLImageElement) {
+      ctx.drawImage(el, 0, 0, w, h);
+    } else {
+      throw new Error("Active element is not image/video");
+    }
+
+    const mime = format === "jpg" ? "image/jpeg" : "image/png";
+
+    let dataUrl: string;
+    try {
+      dataUrl = canvas.toDataURL(mime, format === "jpg" ? 0.9 : undefined);
+    } catch {
+      throw new Error(
+        "Screenshot failed (CORS/tainted canvas). Media must be same-origin or served with Access-Control-Allow-Origin.",
+      );
+    }
+
+    const base64 = dataUrl.split(",")[1] ?? "";
+    if (!base64) throw new Error("Screenshot failed: empty base64 output");
+
+    return { base64, format: mime };
   }
 }
