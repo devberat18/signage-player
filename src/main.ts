@@ -31,6 +31,8 @@ import { PlayHandler } from "./core/application/handlers/play.handler";
 import { PauseHandler } from "./core/application/handlers/pause.handler";
 import { SetVolumeHandler } from "./core/application/handlers/set-volume.handler";
 import { ScreenshotHandler } from "./core/application/handlers/screenshot.handler";
+import { OtaUpdateHandler } from "./core/application/handlers/ota-update.handler";
+import { MockOtaUpdateAdapter } from "./infrastructure/ota/ota-update.mock.adapter";
 
 const PLAYLIST_URL = import.meta.env.VITE_PLAYLIST_URL ?? "./playlist.json";
 
@@ -74,19 +76,24 @@ async function bootstrap() {
 
   void engine.start();
 
-  document.addEventListener("visibilitychange", () => {
+  const handleVisibilityChange = () => {
     if (document.visibilityState === "hidden") {
       void engine.pause();
     } else {
       void engine.play();
     }
-  });
+  };
 
-  window.addEventListener("beforeunload", () => {
+  const handleBeforeUnload = () => {
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
+    window.removeEventListener("beforeunload", handleBeforeUnload);
     unsubscribeEngineEvents();
     engine.stop();
     void mqtt.disconnect();
-  });
+  };
+
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+  window.addEventListener("beforeunload", handleBeforeUnload);
 
   (window as any).reloadPlaylist = () => engine.reloadPlaylist();
 
@@ -95,6 +102,7 @@ async function bootstrap() {
   }, 60_000);
 
   const playerPort = new PlayerEngineAdapter(engine);
+  const otaAdapter = new MockOtaUpdateAdapter(logger);
 
   const dispatcher = new CommandDispatcher([
     new ReloadPlaylistHandler(playerPort),
@@ -103,6 +111,7 @@ async function bootstrap() {
     new PauseHandler(playerPort),
     new SetVolumeHandler(playerPort),
     new ScreenshotHandler(playerPort),
+    new OtaUpdateHandler(otaAdapter),
   ]);
 
   const store = buildIdempotencyStore(`signage:idempo:${deviceId}`);
