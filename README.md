@@ -192,7 +192,7 @@ players/{deviceId}/events
 ```
 ---
 
-## 6. Environment Variables
+## 6. Reliability & Design Decisions
 
 
 MQTT QoS Strategy
