@@ -70,6 +70,15 @@ src/
 - Cached media re-used when network is unavailable.
 - Cache limits and TTL enforcement.
 
+**Startup flow:**
+1. App attempts to fetch the playlist from `VITE_PLAYLIST_URL` over the network.
+2. The response body is hashed (FNV1a) and compared to the hash stored in LocalStorage.
+3. Same hash → cache is valid; the stored playlist is used without re-parsing or re-downloading.
+4. Different hash or no cache entry → new playlist is validated, stored, and the hash is updated.
+5. Network fetch fails → app falls back to the LocalStorage cached playlist if available; logs a warning if neither network nor cache is available.
+
+> **Note:** Video offline caching is not yet implemented. Only images are pre-cached via the Cache API. See [Known Limitations](#10-known-limitations).
+
 ### Reliability
 
 - MQTT publish retry with exponential backoff.
@@ -99,6 +108,7 @@ players/{deviceId}/events
 - `pause`
 - `set_volume`
 - `screenshot`
+- `ota_update`
 
 ### Published event types
 
@@ -112,12 +122,54 @@ players/{deviceId}/events
 
 ### Command (incoming)
 
+Commands with no payload (`reload_playlist`, `play`, `pause`, `restart_player`) send an empty object:
+
 ```json
 {
   "command": "reload_playlist",
   "correlationId": "abc12345",
   "timestamp": 1700000000000,
   "payload": {}
+}
+```
+
+`set_volume` — adjust playback volume (0–100):
+
+```json
+{
+  "command": "set_volume",
+  "correlationId": "vol-001",
+  "timestamp": 1700000000000,
+  "payload": {
+    "volume": 75
+  }
+}
+```
+
+`screenshot` — capture current frame as base64 PNG:
+
+```json
+{
+  "command": "screenshot",
+  "correlationId": "ss-001",
+  "timestamp": 1700000000000,
+  "payload": {
+    "format": "png"
+  }
+}
+```
+
+`ota_update` — trigger remote bundle update (see [Section 20](#20-ota-update-architecture-mock)):
+
+```json
+{
+  "command": "ota_update",
+  "correlationId": "ota-001",
+  "timestamp": 1700000000000,
+  "payload": {
+    "url": "https://cdn.example.com/builds/signage-player-1.2.0.wgt",
+    "version": "1.2.0"
+  }
 }
 ```
 
@@ -291,6 +343,20 @@ Easier debugging in production environments
 
 Since logging is abstracted through a port, it can easily be extended to support remote logging systems in the future.
 
+
+Design Assumptions
+
+Several implementation choices were made deliberately for the Tizen Smart TV target environment:
+
+**localStorage over IndexedDB**
+Tizen WebKit (as shipped on Samsung TVs) has inconsistent IndexedDB support — some models fail to open databases silently. `localStorage` is synchronous, universally available, and sufficient for the small structured data this app stores (playlist hash + idempotency records). The trade-off is a tight quota (see Known Limitations).
+
+**FNV1a hash for change detection**
+The playlist cache compares a stored FNV1a hash of the raw JSON against the newly fetched content. FNV1a is a single-pass, non-cryptographic hash — fast enough to run on every playlist fetch with no perceptible delay. Cryptographic strength is unnecessary here; the goal is cache-validity signaling, not tamper detection.
+
+**24-hour TTL for idempotency records**
+Commands are expected to be sent and acknowledged within a single operational day. A 24h window covers this while preventing unbounded storage growth. If a command is replayed after 24h (e.g. due to a very delayed broker retry), it will be executed again — an acceptable trade-off given signage commands are typically idempotent in effect (e.g. reloading a playlist twice produces the same visible result).
+
 ---
 
 ## 7. Environment Variables
@@ -298,9 +364,10 @@ Since logging is abstracted through a port, it can easily be extended to support
 Create a `.env` file in the project root:
 
 ```bash
-VITE_MQTT_URL=mqtt://localhost:1883
-VITE_DEVICE_ID=tizen-001
-VITE_APP_VERSION=dev
+VITE_MQTT_URL=ws://localhost:9001        # WebSocket URL for browser MQTT (use ws:// not mqtt://)
+VITE_DEVICE_ID=tizen-001                 # Unique device identifier; used in MQTT topic paths
+VITE_APP_VERSION=dev                     # Reported in heartbeat events
+VITE_PLAYLIST_URL=http://your-server/playlist.json  # HTTP endpoint for playlist JSON fetch
 ```
 
 ---
@@ -330,6 +397,57 @@ npm run build
 
 ```bash
 npm run preview
+```
+
+### Local MQTT Broker (Docker)
+
+Start a local Mosquitto broker with a single command:
+
+```bash
+docker compose up -d
+```
+
+This starts the `eclipse-mosquitto:2` container with:
+
+| Port | Protocol | Usage |
+|------|----------|-------|
+| `1883` | MQTT (TCP) | Native MQTT clients, CLI tools |
+| `9001` | WebSocket | Browser clients — **use this for the app** |
+
+Copy `.env.example` to `.env` and the broker URL is already set:
+
+```bash
+cp .env.example .env
+# VITE_MQTT_URL=ws://localhost:9001  ← ready to use
+```
+
+**Topic structure**
+
+| Direction | Topic |
+|-----------|-------|
+| Subscribe (commands) | `players/{deviceId}/commands` |
+| Publish (events) | `players/{deviceId}/events` |
+
+Default `deviceId` is `tizen-001` (override with `VITE_DEVICE_ID` in `.env`).
+
+**Send a test command** (requires `mosquitto_pub`):
+
+```bash
+mosquitto_pub -h localhost -p 1883 \
+  -t "players/tizen-001/commands" \
+  -m '{"command":"reload_playlist","correlationId":"test-001","timestamp":1700000000000}'
+```
+
+**Watch events**:
+
+```bash
+mosquitto_sub -h localhost -p 1883 -t "players/tizen-001/events"
+```
+
+Stop the broker:
+
+```bash
+docker compose down
 ```
 
 ---
@@ -542,7 +660,17 @@ tizen install -n signagePlayerProject.wgt -t <device_serial>
 
 ---
 
-## 18. config.xml Reference
+## 18. Tizen Simulator Screenshots
+
+The following screenshots were captured from the **Tizen Web Simulator** running the signage player with a sample playlist.
+
+![Tizen Simulator — image playback, full-screen landscape](screenshots/simulator.png)
+
+![Tizen Simulator — second item in playlist](screenshots/simulator2.png)
+
+---
+
+## 19. config.xml Reference
 
 [config.xml](config.xml) is the Tizen application manifest. It controls packaging, permissions, display behavior, and platform targeting.
 
@@ -626,3 +754,68 @@ Targets the Samsung TV platform. Combined with the **TV Extensions-10.0** SDK in
 | `encryption` | `disable` | Application resources are not encrypted; enables faster load and easier debugging |
 | `install-location` | `auto` | Platform decides install location (internal or external storage) |
 | `hwkey-event` | `enable` | Enables hardware remote control key events (needed for TV navigation) |
+
+---
+
+## 20. OTA Update Architecture (Mock)
+
+### Overview
+
+The `ota_update` command provides a hook for remote firmware/bundle updates. The current implementation is a **mock** — it validates the payload and logs the intent without performing any actual download or platform reload. The port abstraction makes it straightforward to replace the mock with a real implementation per target platform.
+
+### Command payload
+
+```json
+{
+  "command": "ota_update",
+  "correlationId": "ota-abc123",
+  "timestamp": 1700000000000,
+  "payload": {
+    "url": "https://cdn.example.com/builds/signage-player-1.2.0.wgt",
+    "version": "1.2.0"
+  }
+}
+```
+
+### Architecture
+
+```text
+OtaUpdatePort (core/ports/ota-update.port.ts)
+  └── MockOtaUpdateAdapter   (infrastructure/ota/ota-update.mock.adapter.ts)
+        → logs intent, returns { version, status: "scheduled" }
+  └── [future] TizenOtaAdapter
+        → downloads bundle, verifies checksum, calls tizen.application API
+```
+
+### Successful response
+
+```json
+{
+  "type": "command_result",
+  "timestamp": 1700000000000,
+  "payload": {
+    "correlationId": "ota-abc123",
+    "command": "ota_update",
+    "status": "success",
+    "result": {
+      "version": "1.2.0",
+      "status": "scheduled"
+    }
+  }
+}
+```
+
+### Validation rules
+
+| Field | Rule |
+|---|---|
+| `url` | Required, non-empty string |
+| `version` | Required, non-empty string |
+
+### Production implementation steps
+
+1. Download the bundle from `url` using `fetch` with progress tracking.
+2. Verify the bundle checksum (SHA-256 provided alongside the download URL).
+3. Write the bundle to persistent storage via the Tizen File System API.
+4. Schedule the reload: `tizen.application.getCurrentApplication().exit()` after confirming the new bundle is in place.
+5. Replace `MockOtaUpdateAdapter` with `TizenOtaAdapter` in `main.ts` — no changes to core logic required.
