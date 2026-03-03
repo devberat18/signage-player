@@ -14,16 +14,24 @@ export class MqttJsClientAdapter implements MqttClientPort {
   private messageHandler: ((msg: MqttMessage) => void) | null = null;
   private statusHandler: ((s: ConnectionStatus) => void) | null = null;
 
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private shouldReconnect = false;
+  private reconnectDelayMs = 1000;
+  private minDelayMs = 1000;
+  private maxDelayMs = 30_000;
+
   async connect(options: MqttConnectOptions): Promise<void> {
     const url = import.meta.env.VITE_MQTT_URL as string | undefined;
     if (!url) throw new Error("VITE_MQTT_URL is not set");
 
     const reconnectEnabled = options.reconnect?.enabled ?? true;
-    const reconnectPeriod = reconnectEnabled ? (options.reconnect?.minDelayMs ?? 1000) : 0;
-
+    this.minDelayMs = options.reconnect?.minDelayMs ?? 1000;
+    this.maxDelayMs = options.reconnect?.maxDelayMs ?? 30_000;
+    this.reconnectDelayMs = this.minDelayMs;
+    
     this.client = mqtt.connect(url, {
       clientId: options.clientId,
-      reconnectPeriod,
+      reconnectPeriod: 0,
       will: options.lastWill
         ? {
             topic: options.lastWill.topic,
@@ -34,9 +42,15 @@ export class MqttJsClientAdapter implements MqttClientPort {
         : undefined,
     });
 
-    this.client.on("connect", () => this.statusHandler?.("connected"));
-    this.client.on("reconnect", () => this.statusHandler?.("reconnecting"));
-    this.client.on("close", () => this.statusHandler?.("disconnected"));
+    this.client.on("connect", () => {
+      this.reconnectDelayMs = this.minDelayMs;
+      this.statusHandler?.("connected");
+    });
+
+    this.client.on("close", () => {
+      this.statusHandler?.("disconnected");
+      this.scheduleReconnect();
+    });
 
     this.client.on("message", (topic, payload) => {
       this.messageHandler?.({
@@ -50,6 +64,7 @@ export class MqttJsClientAdapter implements MqttClientPort {
       const c = this.client!;
       const onConnect = () => {
         cleanup();
+        this.shouldReconnect = reconnectEnabled;
         resolve();
       };
       const onError = (err: unknown) => {
@@ -65,7 +80,27 @@ export class MqttJsClientAdapter implements MqttClientPort {
     });
   }
 
+  private scheduleReconnect(): void {
+    if (!this.shouldReconnect || !this.client || this.reconnectTimer !== null) return;
+
+    const delay = this.reconnectDelayMs;
+    this.reconnectDelayMs = Math.min(this.reconnectDelayMs * 2, this.maxDelayMs);
+
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      if (this.shouldReconnect && this.client) {
+        this.statusHandler?.("reconnecting");
+        this.client.reconnect();
+      }
+    }, delay);
+  }
+
   async disconnect(): Promise<void> {
+    this.shouldReconnect = false;
+    if (this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     if (!this.client) return;
     const c = this.client;
     this.client = null;
@@ -85,10 +120,15 @@ export class MqttJsClientAdapter implements MqttClientPort {
   async publish(topic: string, payload: string, options?: PublishOptions): Promise<void> {
     if (!this.client) throw new Error("MQTT client not connected");
     await new Promise<void>((resolve, reject) => {
-      this.client!.publish(topic, payload, { qos: options?.qos ?? 1, retain: options?.retain ?? false }, (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
+      this.client!.publish(
+        topic,
+        payload,
+        { qos: options?.qos ?? 1, retain: options?.retain ?? false },
+        (err) => {
+          if (err) reject(err);
+          else resolve();
+        },
+      );
     });
   }
 
