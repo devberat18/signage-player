@@ -38,10 +38,7 @@ export type Command =
   | SetVolumeCommand
   | ScreenshotCommand;
 
-/**
- * Domain-level “shape” check only.
- * Deep validation (e.g. volume range) belongs to Application layer.
- */
+
 export function isCommandType(value: unknown): value is CommandType {
   return (
     value === "reload_playlist" ||

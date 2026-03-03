@@ -2,17 +2,37 @@
   "playlist": [
     {
       "type": "image",
-      "url": "/1.png",
+      "url": "https://fastly.picsum.photos/id/987/1280/720.jpg?hmac=46L_CijXSrS1rn9esC92_hBTmVbmlCP9cibRzIq7hA0",
       "duration": 5
     },
     {
       "type": "image",
-      "url": "/2.png",
+      "url": "https://fastly.picsum.photos/id/419/1280/720.jpg?hmac=qOGnBuzIoPTFYzqvuwbZyHSqtICC7CZSItdwyqaZXdk",
       "duration": 5
     },
     {
       "type": "image",
-      "url": "/3.png",
+      "url": "https://fastly.picsum.photos/id/861/1280/720.jpg?hmac=N59SX1zvhumSesJ7Wpt7rq927XK60kASqLEx8AYjNB8",
+      "duration": 5
+    },
+    {
+      "type": "image",
+      "url": "https://fastly.picsum.photos/id/765/1280/720.jpg?hmac=Ve0G2wjO9P7hiUcTYf-s7JbOqrs3816TwPididMRIfk",
+      "duration": 5
+    },
+        {
+      "type": "image",
+      "url": "https://fastly.picsum.photos/id/765/1280/720.jpg?hmac=Ve0G2wjO9P7hiUcTYf-s7JbOqrs3816TwPididMRIfk",
+      "duration": 5
+    },
+        {
+      "type": "image",
+      "url": "https://fastly.picsum.photos/id/17/1280/720.jpg?hmac=qWATVsKWjeVtJquO_CdNGkm03o4zFpXg3S-rRzXkf6E",
+      "duration": 5
+    },
+        {
+      "type": "image",
+      "url": "https://fastly.picsum.photos/id/921/1280/720.jpg?hmac=_kfenyYI38K4FYrzavn01cZUPqpu1pbn2OYNhrGqwvg",
       "duration": 5
     },
     {

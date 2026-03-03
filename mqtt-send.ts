@@ -14,8 +14,8 @@ client.on("connect", () => {
   client.subscribe(`players/${DEVICE_ID}/events`, { qos: 1 });
 
   const command = {
-    command: "screenshot",
-    correlationId: "shot-000001",
+    command: "play",
+    correlationId: "play-000001",
     timestamp: 1710000000000,
     payload: { format: "png" },
   };

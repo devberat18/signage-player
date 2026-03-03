@@ -3,6 +3,20 @@ import "./style.css";
 import { MqttJsClientAdapter } from "./infrastructure/mqtt/mqttjs-client";
 import { ConsoleLogger } from "./infrastructure/logging/console-logger";
 import { LocalStorageIdempotencyStore } from "./infrastructure/storage/idempotency-localstorage.store";
+import { MemoryIdempotencyStore } from "./infrastructure/storage/idempotency-memory.store";
+import type { IdempotencyStorePort } from "./core/ports/idempotency-store.port";
+
+function buildIdempotencyStore(namespace: string): IdempotencyStorePort<any> {
+  try {
+    const testKey = `__ls_probe__`;
+    localStorage.setItem(testKey, "1");
+    localStorage.removeItem(testKey);
+    return new LocalStorageIdempotencyStore({ namespace, maxKeys: 500 });
+  } catch {
+    console.warn("[Bootstrap] localStorage unavailable, falling back to MemoryIdempotencyStore");
+    return new MemoryIdempotencyStore();
+  }
+}
 import { CommandDispatcher } from "./core/application/command-dispatcher";
 import { MqttCommandGateway } from "./core/application/mqtt-command-gateway";
 import { ReloadPlaylistHandler } from "./core/application/handlers/reload-playlist.handler";
@@ -18,7 +32,7 @@ import { PauseHandler } from "./core/application/handlers/pause.handler";
 import { SetVolumeHandler } from "./core/application/handlers/set-volume.handler";
 import { ScreenshotHandler } from "./core/application/handlers/screenshot.handler";
 
-const PLAYLIST_URL = "/playlist.json";
+const PLAYLIST_URL = import.meta.env.VITE_PLAYLIST_URL ?? "./playlist.json";
 
 const deviceId =
   (import.meta.env.VITE_DEVICE_ID as string | undefined) ?? "tizen-001";
@@ -48,7 +62,7 @@ async function bootstrap() {
 
   const startedAt = Date.now();
 
-  engine.onEvent((ev) => {
+  const unsubscribeEngineEvents = engine.onEvent((ev) => {
     if (ev.type === "LOG") {
       const prefix = `[ENGINE ${ev.level.toUpperCase()}]`;
       console.log(prefix, ev.message);
@@ -59,6 +73,20 @@ async function bootstrap() {
   });
 
   void engine.start();
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      void engine.pause();
+    } else {
+      void engine.play();
+    }
+  });
+
+  window.addEventListener("beforeunload", () => {
+    unsubscribeEngineEvents();
+    engine.stop();
+    void mqtt.disconnect();
+  });
 
   (window as any).reloadPlaylist = () => engine.reloadPlaylist();
 
@@ -77,10 +105,7 @@ async function bootstrap() {
     new ScreenshotHandler(playerPort),
   ]);
 
-  const store = new LocalStorageIdempotencyStore<any>({
-    namespace: `signage:idempo:${deviceId}`,
-    maxKeys: 500,
-  });
+  const store = buildIdempotencyStore(`signage:idempo:${deviceId}`);
 
   const gateway = new MqttCommandGateway({
     mqtt,
