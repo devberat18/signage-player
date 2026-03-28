@@ -9,7 +9,7 @@ export class PauseHandler implements CommandHandler {
     return command.type === "pause";
   }
 
-  async handle(): Promise<HandlerResult> {
+  async handle(_command: Command): Promise<HandlerResult> {
     await this.player.pause();
     return { ok: true, result: { paused: true } };
   }

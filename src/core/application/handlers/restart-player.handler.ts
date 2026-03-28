@@ -9,7 +9,7 @@ export class RestartPlayerHandler implements CommandHandler {
     return command.type === "restart_player";
   }
 
-  async handle(): Promise<HandlerResult> {
+  async handle(_command: Command): Promise<HandlerResult> {
     await this.player.restartPlayer();
     return { ok: true, result: { restarted: true } };
   }

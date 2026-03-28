@@ -8,11 +8,11 @@ export interface BaseEvent<T extends EventType, TPayload> {
   payload: TPayload;
 }
 
-export type AckStatus = "received" | "duplicate" | "rejected" | "in_progress";
+export type AckStatus = "received" | "duplicate" | "rejected";
 
 export interface CommandAckPayload {
   correlationId: CorrelationId;
-  command: CommandType;
+  command?: CommandType;
   status: AckStatus;
   reason?: string;
 }
@@ -27,7 +27,6 @@ export interface CommandResultPayload<TResult = unknown> {
   status: CommandResultStatus;
   result?: TResult;
   error?: { code: string; message: string };
-  errorMessage?: string;
   format?: "image/png" | "image/jpeg";
   base64?: string;
 }

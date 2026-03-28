@@ -4,7 +4,7 @@ import type { IdempotencyStorePort } from "../ports/idempotency-store.port";
 import type { Command } from "../domain/command";
 import { mapDtoToCommand, type CommandDto } from "./dto/command.dto";
 import { CommandDispatcher } from "./command-dispatcher";
-import { isCommandType, type CommandType } from "../domain/command";
+import { isCommandType } from "../domain/command";
 import { validateCommand } from "./validators/command.validator";
 import type { CommandAckEvent, CommandResultEvent } from "../domain/events";
 
@@ -22,9 +22,7 @@ export class MqttCommandGateway {
   ) {}
 
   start(): void {
-    this.deps.mqtt.onMessage(
-      (msg) => void this.handleMessage(msg.topic, msg.payload),
-    );
+    this.deps.mqtt.onMessage((msg) => void this.handleMessage(msg.topic, msg.payload));
   }
 
   private async handleMessage(topic: string, payload: string): Promise<void> {
@@ -71,17 +69,11 @@ export class MqttCommandGateway {
         },
       };
 
-      await this.publishWithRetry(
-        this.deps.topics.events,
-        JSON.stringify(dupAck),
-        { qos: 1 },
-      );
+      await this.publishWithRetry(this.deps.topics.events, JSON.stringify(dupAck), { qos: 1 });
 
-      await this.publishWithRetry(
-        this.deps.topics.events,
-        JSON.stringify(existing.value.result),
-        { qos: 1 },
-      );
+      await this.publishWithRetry(this.deps.topics.events, JSON.stringify(existing.value.result), {
+        qos: 1,
+      });
 
       return;
     }
@@ -106,11 +98,7 @@ export class MqttCommandGateway {
       ? this.buildSuccessResult(safeCommand, exec.result)
       : this.buildErrorResult(safeCommand, exec.error);
 
-    await this.publishWithRetry(
-      this.deps.topics.events,
-      JSON.stringify(result),
-      { qos: 1 },
-    );
+    await this.publishWithRetry(this.deps.topics.events, JSON.stringify(result), { qos: 1 });
 
     await this.deps.store.set({
       key: safeCommand.correlationId,
@@ -120,26 +108,18 @@ export class MqttCommandGateway {
     });
   }
 
-  private async publishAckAndError(
-    dto: CommandDto,
-    reason: string,
-  ): Promise<void> {
+  private async publishAckAndError(dto: CommandDto, reason: string): Promise<void> {
     const now = Date.now();
-    const correlationId =
-      typeof dto.correlationId === "string" ? dto.correlationId : "invalid";
-
-    const command: CommandType = isCommandType(dto.command)
-      ? dto.command
-      : "reload_playlist";
+    const correlationId = typeof dto.correlationId === "string" ? dto.correlationId : "invalid";
 
     const ack: CommandAckEvent = {
       type: "command_ack",
       timestamp: now,
       payload: {
         correlationId,
-        command,
         status: "rejected",
         reason,
+        ...(isCommandType(dto.command) ? { command: dto.command } : {}),
       },
     };
 
@@ -148,10 +128,7 @@ export class MqttCommandGateway {
     });
   }
 
-  private buildSuccessResult(
-    command: Command,
-    execResult: unknown,
-  ): CommandResultEvent {
+  private buildSuccessResult(command: Command, execResult: unknown): CommandResultEvent {
     if (command.type === "screenshot") {
       const shot = execResult as
         | { format?: "image/png" | "image/jpeg"; base64?: string }
@@ -203,10 +180,7 @@ export class MqttCommandGateway {
       details?: Record<string, unknown>;
     },
   ): CommandResultEvent {
-    const code =
-      (error.details?.code as string | undefined) ??
-      error.code ??
-      "INTERNAL_ERROR";
+    const code = (error.details?.code as string | undefined) ?? error.code ?? "INTERNAL_ERROR";
 
     return {
       type: "command_result",
@@ -216,7 +190,6 @@ export class MqttCommandGateway {
         command: command.type,
         status: "error",
         error: { code, message: error.message },
-        errorMessage: error.message,
       },
     };
   }

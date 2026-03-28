@@ -93,7 +93,7 @@ export class DomRenderer implements Renderer {
         await this.waitImageReady(img);
       } else {
         const video = document.createElement("video");
-        (video as any).crossOrigin = "anonymous";
+        video.crossOrigin = "anonymous";
 
         video.src = item.url;
         video.autoplay = true;
@@ -147,7 +147,7 @@ export class DomRenderer implements Renderer {
     el.style.left = "0";
     el.style.width = "100%";
     el.style.height = "100%";
-    (el as any).style.objectFit = "cover";
+    el.style.objectFit = "cover";
   }
 
   private swapLayers(): void {

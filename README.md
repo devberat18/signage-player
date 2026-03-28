@@ -71,6 +71,7 @@ src/
 - Cache limits and TTL enforcement.
 
 **Startup flow:**
+
 1. App attempts to fetch the playlist from `VITE_PLAYLIST_URL` over the network.
 2. The response body is hashed (FNV1a) and compared to the hash stored in LocalStorage.
 3. Same hash → cache is valid; the stored playlist is used without re-parsing or re-downloading.
@@ -128,8 +129,7 @@ Commands with no payload (`reload_playlist`, `play`, `pause`, `restart_player`) 
 {
   "command": "reload_playlist",
   "correlationId": "abc12345",
-  "timestamp": 1700000000000,
-  "payload": {}
+  "timestamp": 1700000000000
 }
 ```
 
@@ -242,10 +242,10 @@ Commands with no payload (`reload_playlist`, `play`, `pause`, `restart_player`) 
   }
 }
 ```
+
 ---
 
 ## 6. Reliability & Design Decisions
-
 
 MQTT QoS Strategy
 
@@ -279,7 +279,6 @@ Predictable behavior in reconnect/retry scenarios
 QoS 0 was rejected because it may silently drop commands.
 QoS 2 was considered unnecessary for this use case, as idempotency already guarantees safe duplicate handling without the additional protocol overhead.
 
-
 Reconnect Strategy
 
 In this project, MQTT disconnection is treated as an expected scenario rather than an exception. Smart TV signage devices typically operate in unstable network environments, so the system must be able to recover automatically without crashing.
@@ -295,7 +294,6 @@ The device can recover from temporary broker unavailability
 Improved resilience in command and event delivery
 
 Reconnect behavior is a critical reliability requirement for long-running field devices.
-
 
 Error Handling Strategy
 
@@ -343,18 +341,20 @@ Easier debugging in production environments
 
 Since logging is abstracted through a port, it can easily be extended to support remote logging systems in the future.
 
-
 Design Assumptions
 
 Several implementation choices were made deliberately for the Tizen Smart TV target environment:
 
-**localStorage over IndexedDB**
+## localStorage over IndexedDB
+
 Tizen WebKit (as shipped on Samsung TVs) has inconsistent IndexedDB support — some models fail to open databases silently. `localStorage` is synchronous, universally available, and sufficient for the small structured data this app stores (playlist hash + idempotency records). The trade-off is a tight quota (see Known Limitations).
 
-**FNV1a hash for change detection**
+## FNV1a hash for change detection
+
 The playlist cache compares a stored FNV1a hash of the raw JSON against the newly fetched content. FNV1a is a single-pass, non-cryptographic hash — fast enough to run on every playlist fetch with no perceptible delay. Cryptographic strength is unnecessary here; the goal is cache-validity signaling, not tamper detection.
 
-**24-hour TTL for idempotency records**
+## 24-hour TTL for idempotency records
+
 Commands are expected to be sent and acknowledged within a single operational day. A 24h window covers this while preventing unbounded storage growth. If a command is replayed after 24h (e.g. due to a very delayed broker retry), it will be executed again — an acceptable trade-off given signage commands are typically idempotent in effect (e.g. reloading a playlist twice produces the same visible result).
 
 ---
@@ -373,7 +373,6 @@ VITE_PLAYLIST_URL=http://your-server/playlist.json  # HTTP endpoint for playlist
 ---
 
 ## 8. Local Development
-
 
 ### Install dependencies
 
@@ -409,10 +408,10 @@ docker compose up -d
 
 This starts the `eclipse-mosquitto:2` container with:
 
-| Port | Protocol | Usage |
-|------|----------|-------|
-| `1883` | MQTT (TCP) | Native MQTT clients, CLI tools |
-| `9001` | WebSocket | Browser clients — **use this for the app** |
+| Port   | Protocol   | Usage                                      |
+| ------ | ---------- | ------------------------------------------ |
+| `1883` | MQTT (TCP) | Native MQTT clients, CLI tools             |
+| `9001` | WebSocket  | Browser clients — **use this for the app** |
 
 Copy `.env.example` to `.env` and the broker URL is already set:
 
@@ -421,16 +420,16 @@ cp .env.example .env
 # VITE_MQTT_URL=ws://localhost:9001  ← ready to use
 ```
 
-**Topic structure**
+### Topic structure
 
-| Direction | Topic |
-|-----------|-------|
+| Direction            | Topic                         |
+| -------------------- | ----------------------------- |
 | Subscribe (commands) | `players/{deviceId}/commands` |
-| Publish (events) | `players/{deviceId}/events` |
+| Publish (events)     | `players/{deviceId}/events`   |
 
 Default `deviceId` is `tizen-001` (override with `VITE_DEVICE_ID` in `.env`).
 
-**Send a test command** (requires `mosquitto_pub`):
+### Send a test command (requires `mosquitto_pub`):
 
 ```bash
 mosquitto_pub -h localhost -p 1883 \
@@ -438,7 +437,7 @@ mosquitto_pub -h localhost -p 1883 \
   -m '{"command":"reload_playlist","correlationId":"test-001","timestamp":1700000000000}'
 ```
 
-**Watch events**:
+### Watch events:
 
 ```bash
 mosquitto_sub -h localhost -p 1883 -t "players/tizen-001/events"
@@ -448,6 +447,27 @@ Stop the broker:
 
 ```bash
 docker compose down
+```
+
+#### Sending test commands via script
+
+You can also send commands using the helper script:
+
+```bash
+npm run mqtt:send
+```
+
+This script publishes a sample command to the following MQTT topic:
+
+```bash
+players/{deviceId}/commands (e.g. players/tizen-001/commands)
+```
+
+Environment variables:
+
+```bash
+MQTT_URL=ws://localhost:9001
+DEVICE_ID=tizen-001
 ```
 
 ---
@@ -518,10 +538,10 @@ java -version
 
 Open the **Extension SDK** tab in Package Manager and install:
 
-| Package | Required for |
-|---|---|
-| **TV Extensions** (e.g. `TV Extensions-10.0`) | Samsung TV platform SDK, emulator image, and device profile |
-| **Samsung Certificate Extension** | Generating author and distributor certificates for Samsung devices |
+| Package                                       | Required for                                                       |
+| --------------------------------------------- | ------------------------------------------------------------------ |
+| **TV Extensions** (e.g. `TV Extensions-10.0`) | Samsung TV platform SDK, emulator image, and device profile        |
+| **Samsung Certificate Extension**             | Generating author and distributor certificates for Samsung devices |
 
 After installation, restart Tizen Studio.
 
@@ -684,11 +704,11 @@ The following screenshots were captured from the **Tizen Web Simulator** running
   viewmodes="maximized">
 ```
 
-| Attribute | Value | Description |
-|---|---|---|
-| `id` | `http://yourdomain/signagePlayerProject` | Unique application identifier URI |
-| `version` | `1.0.0` | Application version shown in the package manager |
-| `viewmodes` | `maximized` | Launches the app in full-screen mode |
+| Attribute   | Value                                    | Description                                      |
+| ----------- | ---------------------------------------- | ------------------------------------------------ |
+| `id`        | `http://yourdomain/signagePlayerProject` | Unique application identifier URI                |
+| `version`   | `1.0.0`                                  | Application version shown in the package manager |
+| `viewmodes` | `maximized`                              | Launches the app in full-screen mode             |
 
 ---
 
@@ -696,11 +716,11 @@ The following screenshots were captured from the **Tizen Web Simulator** running
 <tizen:application id="eE15rwf0yT.signagePlayerProject" package="eE15rwf0yT" required_version="2.3"/>
 ```
 
-| Attribute | Value | Description |
-|---|---|---|
-| `id` | `eE15rwf0yT.signagePlayerProject` | Full Tizen application ID (`package.appname`) |
-| `package` | `eE15rwf0yT` | 10-character package ID, must match your Samsung developer account |
-| `required_version` | `2.3` | Minimum Tizen API version required to run the app |
+| Attribute          | Value                             | Description                                                        |
+| ------------------ | --------------------------------- | ------------------------------------------------------------------ |
+| `id`               | `eE15rwf0yT.signagePlayerProject` | Full Tizen application ID (`package.appname`)                      |
+| `package`          | `eE15rwf0yT`                      | 10-character package ID, must match your Samsung developer account |
+| `required_version` | `2.3`                             | Minimum Tizen API version required to run the app                  |
 
 ---
 
@@ -746,14 +766,14 @@ Targets the Samsung TV platform. Combined with the **TV Extensions-10.0** SDK in
   hwkey-event="enable"/>
 ```
 
-| Attribute | Value | Description |
-|---|---|---|
-| `screen-orientation` | `landscape` | Forces landscape layout — standard for TV displays |
-| `context-menu` | `enable` | Allows right-click / long-press context menus (useful during development) |
-| `background-support` | `disable` | App is suspended when moved to background, conserving resources |
-| `encryption` | `disable` | Application resources are not encrypted; enables faster load and easier debugging |
-| `install-location` | `auto` | Platform decides install location (internal or external storage) |
-| `hwkey-event` | `enable` | Enables hardware remote control key events (needed for TV navigation) |
+| Attribute            | Value       | Description                                                                       |
+| -------------------- | ----------- | --------------------------------------------------------------------------------- |
+| `screen-orientation` | `landscape` | Forces landscape layout — standard for TV displays                                |
+| `context-menu`       | `enable`    | Allows right-click / long-press context menus (useful during development)         |
+| `background-support` | `disable`   | App is suspended when moved to background, conserving resources                   |
+| `encryption`         | `disable`   | Application resources are not encrypted; enables faster load and easier debugging |
+| `install-location`   | `auto`      | Platform decides install location (internal or external storage)                  |
+| `hwkey-event`        | `enable`    | Enables hardware remote control key events (needed for TV navigation)             |
 
 ---
 
@@ -807,9 +827,9 @@ OtaUpdatePort (core/ports/ota-update.port.ts)
 
 ### Validation rules
 
-| Field | Rule |
-|---|---|
-| `url` | Required, non-empty string |
+| Field     | Rule                       |
+| --------- | -------------------------- |
+| `url`     | Required, non-empty string |
 | `version` | Required, non-empty string |
 
 ### Production implementation steps

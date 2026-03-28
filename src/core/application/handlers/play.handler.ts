@@ -9,7 +9,7 @@ export class PlayHandler implements CommandHandler {
     return command.type === "play";
   }
 
-  async handle(): Promise<HandlerResult> {
+  async handle(_command: Command): Promise<HandlerResult> {
     await this.player.play();
     return { ok: true, result: { playing: true } };
   }

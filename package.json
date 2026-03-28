@@ -12,10 +12,12 @@
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "format": "prettier --write \"src/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\""
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "mqtt:send": "cross-env MQTT_URL=ws://localhost:9001 DEVICE_ID=tizen-001 tsx mqtt-send.ts"
   },
   "devDependencies": {
     "@vitejs/plugin-legacy": "^7.2.1",
+    "cross-env": "^10.1.0",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^10.0.0",
     "prettier": "^3.0.0",

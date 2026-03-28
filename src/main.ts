@@ -5,18 +5,6 @@ import { ConsoleLogger } from "./infrastructure/logging/console-logger";
 import { LocalStorageIdempotencyStore } from "./infrastructure/storage/idempotency-localstorage.store";
 import { MemoryIdempotencyStore } from "./infrastructure/storage/idempotency-memory.store";
 import type { IdempotencyStorePort } from "./core/ports/idempotency-store.port";
-
-function buildIdempotencyStore(namespace: string): IdempotencyStorePort<any> {
-  try {
-    const testKey = `__ls_probe__`;
-    localStorage.setItem(testKey, "1");
-    localStorage.removeItem(testKey);
-    return new LocalStorageIdempotencyStore({ namespace, maxKeys: 500 });
-  } catch {
-    console.warn("[Bootstrap] localStorage unavailable, falling back to MemoryIdempotencyStore");
-    return new MemoryIdempotencyStore();
-  }
-}
 import { CommandDispatcher } from "./core/application/command-dispatcher";
 import { MqttCommandGateway } from "./core/application/mqtt-command-gateway";
 import { ReloadPlaylistHandler } from "./core/application/handlers/reload-playlist.handler";
@@ -36,8 +24,7 @@ import { MockOtaUpdateAdapter } from "./infrastructure/ota/ota-update.mock.adapt
 
 const PLAYLIST_URL = import.meta.env.VITE_PLAYLIST_URL ?? "./playlist.json";
 
-const deviceId =
-  (import.meta.env.VITE_DEVICE_ID as string | undefined) ?? "tizen-001";
+const deviceId = (import.meta.env.VITE_DEVICE_ID as string | undefined) ?? "tizen-001";
 
 async function bootstrap() {
   const logger = new ConsoleLogger();
@@ -95,8 +82,9 @@ async function bootstrap() {
   document.addEventListener("visibilitychange", handleVisibilityChange);
   window.addEventListener("beforeunload", handleBeforeUnload);
 
-  (window as any).reloadPlaylist = () => engine.reloadPlaylist();
-
+  if (import.meta.env.DEV) {
+    (window as any).reloadPlaylist = () => engine.reloadPlaylist();
+  }
   setInterval(() => {
     void engine.reloadPlaylist();
   }, 60_000);
@@ -137,8 +125,7 @@ async function bootstrap() {
           status,
           deviceId,
           uptimeSec,
-          version:
-            (import.meta.env.VITE_APP_VERSION as string | undefined) ?? "dev",
+          version: (import.meta.env.VITE_APP_VERSION as string | undefined) ?? "dev",
         },
       }),
       { qos: 1, retain: false },
@@ -179,6 +166,18 @@ async function bootstrap() {
   }, HEARTBEAT_MS);
 
   logger.info("Bootstrap complete", { deviceId, commandsTopic, eventsTopic });
+}
+
+function buildIdempotencyStore(namespace: string): IdempotencyStorePort<any> {
+  try {
+    const testKey = `__ls_probe__`;
+    localStorage.setItem(testKey, "1");
+    localStorage.removeItem(testKey);
+    return new LocalStorageIdempotencyStore({ namespace, maxKeys: 500 });
+  } catch {
+    console.warn("[Bootstrap] localStorage unavailable, falling back to MemoryIdempotencyStore");
+    return new MemoryIdempotencyStore();
+  }
 }
 
 bootstrap().catch((e) => console.error("BOOTSTRAP FAILED", e));

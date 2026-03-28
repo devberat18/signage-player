@@ -9,7 +9,7 @@ export class ReloadPlaylistHandler implements CommandHandler {
     return command.type === "reload_playlist";
   }
 
-  async handle(): Promise<HandlerResult> {
+  async handle(_command: Command): Promise<HandlerResult> {
     await this.player.reloadPlaylist();
     return { ok: true, result: { reloaded: true } };
   }

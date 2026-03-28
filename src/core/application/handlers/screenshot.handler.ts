@@ -12,10 +12,14 @@ export class ScreenshotHandler implements CommandHandler {
 
   async handle(command: Command): Promise<HandlerResult> {
     const p = command.payload as unknown;
-    const fmt =
-      typeof p === "object" && p !== null && "format" in (p as any)
-        ? ((p as any).format as "png" | "jpg" | undefined)
-        : undefined;
+    let fmt: "png" | "jpg" | undefined;
+
+    if (typeof p === "object" && p !== null && "format" in p) {
+      const rawFormat = (p as Record<string, unknown>).format;
+      if (rawFormat === "png" || rawFormat === "jpg") {
+        fmt = rawFormat;
+      }
+    }
 
     try {
       const shot = await this.player.screenshot(fmt);

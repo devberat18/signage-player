@@ -15,16 +15,12 @@ client.on("connect", () => {
 
   const command = {
     command: "play",
-    correlationId: "play-000001",
-    timestamp: 1710000000000,
-    payload: { format: "png" },
+    correlationId: `play-${Date.now()}`,
+    timestamp: Date.now(),
   };
 
-  client.publish(
-    `players/${DEVICE_ID}/commands`,
-    JSON.stringify(command),
-    { qos: 1 },
-    () => console.log("COMMAND SENT:", command),
+  client.publish(`players/${DEVICE_ID}/commands`, JSON.stringify(command), { qos: 1 }, () =>
+    console.log("COMMAND SENT:", command),
   );
 });
 

@@ -287,7 +287,7 @@ export class PlayerEngine {
   async screenshot(
     format: "png" | "jpg" = "png",
   ): Promise<{ format: "image/png" | "image/jpeg"; base64: string }> {
-    const r = this.renderer as any;
+    const r = this.renderer;
     if (typeof r.screenshot === "function") {
       return await r.screenshot(format);
     }
