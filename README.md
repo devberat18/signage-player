@@ -247,7 +247,7 @@ Commands with no payload (`reload_playlist`, `play`, `pause`, `restart_player`) 
 
 ## 6. Reliability & Design Decisions
 
-MQTT QoS Strategy
+### MQTT QoS Strategy
 
 The application uses QoS 1 (at least once delivery) for both command consumption and event publishing.
 
