@@ -123,7 +123,7 @@ players/{deviceId}/events
 
 ### Command (incoming)
 
-Commands with no payload (`reload_playlist`, `play`, `pause`, `restart_player`) send an empty object:
+Commands with no payload (`reload_playlist`, `play`, `pause`, `restart_player`) omit the payload field:
 
 ```json
 {
@@ -258,11 +258,9 @@ To safely handle this, the application implements an idempotency mechanism based
 
 For every incoming command:
 
-A unique correlationId is required.
-
-The result of the command execution is stored with a TTL (24h).
-
-If a duplicate command with the same correlationId is received:
+- A unique correlationId is required.
+- The result of the command execution is stored with a TTL (24h).
+- If a duplicate command with the same correlationId is received:
 
 The command is not executed again.
 
@@ -270,16 +268,14 @@ The previously stored result is re-published.
 
 This design provides:
 
-Reliability (no lost commands)
-
-Safety (no double execution)
-
-Predictable behavior in reconnect/retry scenarios
+- Reliability (no lost commands)
+- Safety (no double execution)
+- Predictable behavior in reconnect/retry scenarios
 
 QoS 0 was rejected because it may silently drop commands.
 QoS 2 was considered unnecessary for this use case, as idempotency already guarantees safe duplicate handling without the additional protocol overhead.
 
-Reconnect Strategy
+### Reconnect Strategy
 
 In this project, MQTT disconnection is treated as an expected scenario rather than an exception. Smart TV signage devices typically operate in unstable network environments, so the system must be able to recover automatically without crashing.
 
@@ -295,7 +291,7 @@ Improved resilience in command and event delivery
 
 Reconnect behavior is a critical reliability requirement for long-running field devices.
 
-Error Handling Strategy
+### Error Handling Strategy
 
 The error handling strategy in this project is based on a “never crash on bad input” principle. The goal is not to ignore errors but to handle them in a controlled way while keeping the system operational.
 
@@ -325,7 +321,7 @@ The player continues operating even under network instability
 
 This reflects a defensive programming mindset expected in production systems.
 
-Logging Strategy
+### Logging Strategy
 
 The logging architecture is designed to ensure system observability. Events from the domain and engine layers are categorized using log levels (info, warn, error).
 
@@ -341,7 +337,7 @@ Easier debugging in production environments
 
 Since logging is abstracted through a port, it can easily be extended to support remote logging systems in the future.
 
-Design Assumptions
+### Design Assumptions
 
 Several implementation choices were made deliberately for the Tizen Smart TV target environment:
 
@@ -460,7 +456,8 @@ npm run mqtt:send
 This script publishes a sample command to the following MQTT topic:
 
 ```bash
-players/{deviceId}/commands (e.g. players/tizen-001/commands)
+players/{deviceId}/commands 
+(e.g. players/tizen-001/commands)
 ```
 
 Environment variables:
